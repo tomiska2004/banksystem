@@ -14,4 +14,5 @@ include 'user-service'
 include 'account-service'
 include 'transaction-service'
 include 'notification-service'
+include 'bank-common'
 

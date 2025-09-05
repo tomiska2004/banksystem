@@ -51,14 +51,28 @@ services:
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
     depends_on: [ user-db, kafka ]
 
+#  account-service:
+#    build: ./account-service
+#    ports: [ "8082:8080" ]
+#    environment:
+#      - SPRING_DATASOURCE_URL=jdbc:postgresql://account-db:5432/accountdb
+#      - SPRING_DATASOURCE_USERNAME=account
+#      - SPRING_DATASOURCE_PASSWORD=account
+#      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+#    depends_on: [ account-db, kafka ]
+
   account-service:
     build: ./account-service
+    ports:
+      - "8082:8080"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://account-db:5432/accountdb
       - SPRING_DATASOURCE_USERNAME=account
       - SPRING_DATASOURCE_PASSWORD=account
       - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
-    depends_on: [ account-db, kafka ]
+    depends_on:
+      - account-db
+      - kafka
 
   transaction-service:
     build: ./transaction-service

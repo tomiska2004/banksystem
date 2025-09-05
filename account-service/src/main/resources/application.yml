@@ -1,0 +1,18 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://account-db:5432/accountdb
+    username: account
+    password: account
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  kafka:
+    bootstrap-servers: kafka:9092
+    security:
+      oauth2:
+        resourceserver:
+          jwt:
+            secret-key: secretkey1234567890secretkey1234567890
+
