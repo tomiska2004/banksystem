@@ -76,6 +76,8 @@ services:
 
   transaction-service:
     build: ./transaction-service
+    ports:
+      - "8083:8080"
     environment:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://txn-db:5432/txndb
       - SPRING_DATASOURCE_USERNAME=txn
