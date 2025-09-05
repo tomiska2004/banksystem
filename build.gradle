@@ -1,0 +1,23 @@
+plugins {
+    id 'java'
+}
+
+allprojects {
+    group = 'com.example.bank'
+    version = '0.0.1-SNAPSHOT'
+
+    repositories {
+        mavenCentral()
+    }
+}
+
+subprojects {
+    apply plugin: 'java'
+//    apply plugin: 'io.spring.dependency-management'
+
+    sourceCompatibility = '21'
+
+    dependencies {
+        testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    }
+}
