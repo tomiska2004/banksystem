@@ -70,4 +70,10 @@ public class AccountService {
                 .map(account -> account.getUserId().equals(userId))
                 .orElse(false);
     }
+
+    public boolean validateAccountFund(Long id,BigDecimal sum) {
+        return accountRepository.findById(id)
+                .map(account -> account.getBalance().compareTo(sum)>=0)
+                .orElse(false);
+    }
 }

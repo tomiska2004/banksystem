@@ -54,4 +54,10 @@ public class AccountController {
         boolean isOwner = accountService.validateAccountOwnership(id, userId);
         return ResponseEntity.ok(isOwner);
     }
+    @GetMapping("/{id}/checksum")
+    public ResponseEntity<Boolean> validateCheck(@PathVariable Long id,
+                                                   @RequestParam BigDecimal sum) {
+        boolean isOwner = accountService.validateAccountFund(id,sum);
+        return ResponseEntity.ok(isOwner);
+    }
 }

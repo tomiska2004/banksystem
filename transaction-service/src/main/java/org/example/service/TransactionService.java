@@ -9,6 +9,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 public class TransactionService {
@@ -65,8 +66,38 @@ public class TransactionService {
             throw new RuntimeException("Validation service unavailable");
         }
 
+
+
         // Save transaction
         logger.info("Saving transaction: {}", tx);
+        if(Objects.equals(tx.getType(), "WITHDRAWN")){
+            try {
+                // Call account-service to check ownership
+                logger.info("Calling account-service to validate ownership for accountId: {} and userId: {}", tx.getAccountId(), userId);
+                Boolean sufFund = webClient.get()
+                        .uri(uriBuilder -> uriBuilder
+                                .path("/{id}/checksum")
+                                .queryParam("sum", tx.getAmount())
+                                .build(tx.getAccountId())
+                        )
+                        .retrieve()
+                        .bodyToMono(Boolean.class)
+                        .block();
+
+                if (sufFund == null) {
+                    logger.warn("Fund validation returned null for accountId: {} and userId: {}", tx.getAccountId(), userId);
+                } else if (!sufFund) {
+                    logger.warn("Fund validation failed for accountId: {} and userId: {}  FUND IS NOT ENOUGH", tx.getAccountId(), userId);
+                    throw new RuntimeException("NOT ENOUGH FUND");
+                } else {
+                    logger.info("ENOUGH FUND validated successfully for accountId: {} and userId: {}", tx.getAccountId(), userId);
+                }
+            } catch (Exception e) {
+                logger.error("Error during fund validation for accountId: {} and userId: {}", tx.getAccountId(), userId, e);
+                throw new RuntimeException("Validation service unavailable/NOT ENOUGH FUND");
+            }
+        }
+
         Transaction saved = transactionRepository.save(tx);
         logger.info("Transaction saved with ID: {}", saved.getId());
 
