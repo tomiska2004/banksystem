@@ -1,5 +1,6 @@
 package org.example.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.model.Transaction;
 import org.example.repository.TransactionRepository;
 import org.example.model.TransactionEvent;
@@ -70,7 +71,7 @@ public class TransactionService {
 
         // Save transaction
         logger.info("Saving transaction: {}", tx);
-        if(Objects.equals(tx.getType(), "WITHDRAWN")){
+        if(Objects.equals(tx.getType(), "WITHDRAW")){
             try {
                 // Call account-service to check ownership
                 logger.info("Calling account-service to validate ownership for accountId: {} and userId: {}", tx.getAccountId(), userId);
@@ -109,6 +110,8 @@ public class TransactionService {
                 saved.getType(),
                 saved.getTimestamp().toString()
         );
+
+
 
         // Send event to Kafka
         logger.info("Sending transaction event to Kafka for transaction ID: {}", saved.getId());
