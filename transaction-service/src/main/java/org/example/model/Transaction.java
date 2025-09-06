@@ -1,6 +1,7 @@
 package org.example.model;
 
 import jakarta.persistence.*;
+import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -19,11 +20,17 @@ public class Transaction {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotNull(message = "Account ID is required")
+    @Min(value = 1, message = "Account ID must be a positive number")
     private Long accountId;
 
+    @NotNull(message = "Amount is required")
+    @DecimalMin(value = "0.01", message = "Amount must be greater than 0")
     private BigDecimal amount;
 
-    private String type; // DEPOSIT, WITHDRAW, TRANSFER
+    @NotNull(message = "Type is required")
+    @Pattern(regexp = "DEPOSIT|WITHDRAW|TRANSFER", message = "Type must be one of: DEPOSIT, WITHDRAW, TRANSFER")
+    private String type;
 
-    private LocalDateTime timestamp;
+    private LocalDateTime timestamp; // Optional — can be auto-set in service layer
 }
