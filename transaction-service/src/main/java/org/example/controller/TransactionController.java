@@ -30,7 +30,7 @@ public class TransactionController {
         String username = jwtUtil.extractUsername(token);  // still keep username
         Long userId = jwtUtil.extractUserId(token);        // get userId
 
-        return ResponseEntity.ok(transactionService.createTransaction(tx, username));
+        return ResponseEntity.ok(transactionService.createTransaction(tx, userId));
     }
 
     @GetMapping("/account/{accountId}")
@@ -41,6 +41,6 @@ public class TransactionController {
         String token = request.getHeader("Authorization").substring(7);
         Long userId = jwtUtil.extractUserId(token);
 
-        return ResponseEntity.ok(transactionService.getTransactionsByAccount(accountId, userId.toString()));
+        return ResponseEntity.ok(transactionService.getTransactionsByAccount(accountId, userId));
     }
 }

@@ -41,4 +41,9 @@ public class UserService {
                 .map(u -> passwordEncoder.matches(rawPassword, u.getPassword()))
                 .orElse(false);
     }
+
+    public Long getId(String username) {
+        Optional<User> user=userRepository.findByUsername(username);
+        return user.get().getId();
+    }
 }
