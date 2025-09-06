@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
 
+import javax.management.ConstructorParameters;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
@@ -32,5 +33,15 @@ public class Transaction {
     @Pattern(regexp = "DEPOSIT|WITHDRAW|TRANSFER", message = "Type must be one of: DEPOSIT, WITHDRAW, TRANSFER")
     private String type;
 
-    private LocalDateTime timestamp; // Optional — can be auto-set in service layer
+    private LocalDateTime timestamp;
+
+    private Long destinationAccountId;
+
+    public Transaction(Long transactionId, Long accountId, BigDecimal amount, String type, LocalDateTime stamp) {
+        this.id = transactionId;
+        this.accountId = accountId;
+        this.amount = amount;
+        this.type = type;
+        this.timestamp = stamp;
+    }
 }

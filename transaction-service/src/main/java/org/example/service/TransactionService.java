@@ -1,16 +1,15 @@
 package org.example.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.example.model.Transaction;
-import org.example.repository.TransactionRepository;
 import org.example.model.TransactionEvent;
+import org.example.repository.TransactionRepository;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import java.util.List;
-import java.util.Objects;
 
 @Service
 public class TransactionService {
@@ -32,97 +31,53 @@ public class TransactionService {
     }
 
     public Transaction createTransaction(Transaction tx, Long userId) {
-        String url = String.valueOf(webClient.get()
-                .uri(uriBuilder -> uriBuilder
-                        .path("/{id}/validate")
-                        .queryParam("userId", userId)
-                        .build(tx.getAccountId())
-                ));
+        // Step 1: Validate ownership of source account
+        validateAccountOwnership(tx.getAccountId(), userId);
 
-        logger.info("Constructed validation URL: {}", url);
-
-        try {
-            // Call account-service to check ownership
-            logger.info("Calling account-service to validate ownership for accountId: {} and userId: {}", tx.getAccountId(), userId);
-            Boolean isOwner = webClient.get()
-                    .uri(uriBuilder -> uriBuilder
-                            .path("/{id}/validate")
-                            .queryParam("userId", userId)
-                            .build(tx.getAccountId())
-                    )
-                    .retrieve()
-                    .bodyToMono(Boolean.class)
-                    .block();
-
-            if (isOwner == null) {
-                logger.warn("Ownership validation returned null for accountId: {} and userId: {}", tx.getAccountId(), userId);
-            } else if (!isOwner) {
-                logger.warn("Ownership validation failed for accountId: {} and userId: {}", tx.getAccountId(), userId);
-                throw new RuntimeException("Unauthorized");
-            } else {
-                logger.info("Ownership validated successfully for accountId: {} and userId: {}", tx.getAccountId(), userId);
-            }
-        } catch (Exception e) {
-            logger.error("Error during ownership validation for accountId: {} and userId: {}", tx.getAccountId(), userId, e);
-            throw new RuntimeException("Validation service unavailable");
+        // Step 2: Validate based on transaction type
+        if ("TRANSFER".equals(tx.getType())) {
+            validateForTransfer(tx);
+        } else if ("WITHDRAW".equals(tx.getType())) {
+            validateForWithdraw(tx);
         }
 
 
-
-        // Save transaction
-        logger.info("Saving transaction: {}", tx);
-        if(Objects.equals(tx.getType(), "WITHDRAW")){
-            try {
-                // Call account-service to check ownership
-                logger.info("Calling account-service to validate ownership for accountId: {} and userId: {}", tx.getAccountId(), userId);
-                Boolean sufFund = webClient.get()
-                        .uri(uriBuilder -> uriBuilder
-                                .path("/{id}/checksum")
-                                .queryParam("sum", tx.getAmount())
-                                .build(tx.getAccountId())
-                        )
-                        .retrieve()
-                        .bodyToMono(Boolean.class)
-                        .block();
-
-                if (sufFund == null) {
-                    logger.warn("Fund validation returned null for accountId: {} and userId: {}", tx.getAccountId(), userId);
-                } else if (!sufFund) {
-                    logger.warn("Fund validation failed for accountId: {} and userId: {}  FUND IS NOT ENOUGH", tx.getAccountId(), userId);
-                    throw new RuntimeException("NOT ENOUGH FUND");
-                } else {
-                    logger.info("ENOUGH FUND validated successfully for accountId: {} and userId: {}", tx.getAccountId(), userId);
-                }
-            } catch (Exception e) {
-                logger.error("Error during fund validation for accountId: {} and userId: {}", tx.getAccountId(), userId, e);
-                throw new RuntimeException("Validation service unavailable/NOT ENOUGH FUND");
-            }
-        }
-
+        // Step 3: Save transaction
         Transaction saved = transactionRepository.save(tx);
         logger.info("Transaction saved with ID: {}", saved.getId());
 
-        // Prepare event
-        TransactionEvent event = new TransactionEvent(
-                saved.getId(),
-                saved.getAccountId(),
-                saved.getAmount(),
-                saved.getType(),
-                saved.getTimestamp().toString()
-        );
+        // Step 4: Prepare and send Kafka event
+        TransactionEvent event;
 
+        if ("TRANSFER".equals(tx.getType()) && tx.getDestinationAccountId() != null) {
+            logger.info("@@@@@@@@@@@@@@@DestinationAccountId%%%%%%%%%%%%{} second{}", tx.getDestinationAccountId(),saved.getDestinationAccountId());
+            event = new TransactionEvent(
+                    saved.getId(),
+                    saved.getAccountId(),
+                    saved.getAmount(),
+                    saved.getType(),
+                    saved.getTimestamp().toString(),
+                    saved.getDestinationAccountId()
+            );
+        } else {
+            event = new TransactionEvent(
+                    saved.getId(),
+                    saved.getAccountId(),
+                    saved.getAmount(),
+                    saved.getType(),
+                    saved.getTimestamp().toString(),
+                    null
+            );
+        }
 
-
-        // Send event to Kafka
-        logger.info("Sending transaction event to Kafka for transaction ID: {}", saved.getId());
+        logger.info("Sending transaction event to Kafka: {}", event);
         kafkaTemplate.send("transaction-events", event);
-        logger.info("Transaction event sent successfully for transaction ID: {}", saved.getId());
+        logger.info("Transaction event sent successfully for ID: {}", saved.getId());
 
         return saved;
     }
 
     public List<Transaction> getTransactionsByAccount(Long accountId, Long userId) {
-        // Call account-service for validation
         logger.info("Validating account ownership for accountId: {} and userId: {}", accountId, userId);
         Boolean isOwner;
         try {
@@ -140,19 +95,90 @@ public class TransactionService {
             throw new RuntimeException("Validation service unavailable");
         }
 
-        if (isOwner == null) {
-            logger.warn("Ownership validation returned null for accountId: {} and userId: {}", accountId, userId);
-            throw new RuntimeException("Unauthorized");
-        } else if (!isOwner) {
+        if (!Boolean.TRUE.equals(isOwner)) {
             logger.warn("Ownership validation failed for accountId: {} and userId: {}", accountId, userId);
             throw new RuntimeException("Unauthorized");
-        } else {
-            logger.info("Ownership validated successfully for accountId: {} and userId: {}", accountId, userId);
         }
 
-        // Fetch transactions
+        logger.info("Ownership validated successfully for accountId: {} and userId: {}", accountId, userId);
+
         List<Transaction> transactions = transactionRepository.findByAccountId(accountId);
         logger.info("Fetched {} transactions for accountId: {}", transactions.size(), accountId);
         return transactions;
+    }
+
+    // ──────────────────────────── PRIVATE HELPERS ─────────────────────────── //
+
+    private void validateAccountOwnership(Long accountId, Long userId) {
+        logger.info("Validating ownership for accountId: {} and userId: {}", accountId, userId);
+        try {
+            Boolean isOwner = webClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/{id}/validate")
+                            .queryParam("userId", userId)
+                            .build(accountId)
+                    )
+                    .retrieve()
+                    .bodyToMono(Boolean.class)
+                    .block();
+
+            if (!Boolean.TRUE.equals(isOwner)) {
+                logger.warn("Ownership validation failed for accountId: {} and userId: {}", accountId, userId);
+                throw new RuntimeException("Unauthorized");
+            }
+            logger.info("Ownership validated successfully for accountId: {} and userId: {}", accountId, userId);
+        } catch (Exception e) {
+            logger.error("Error during ownership validation", e);
+            throw new RuntimeException("Validation service unavailable");
+        }
+    }
+
+    private void validateForWithdraw(Transaction tx) {
+        logger.info("Validating sufficient funds for WITHDRAW of {} from account {}", tx.getAmount(), tx.getAccountId());
+        try {
+            Boolean hasSufficientFunds = webClient.get()
+                    .uri(uriBuilder -> uriBuilder
+                            .path("/{id}/checksum")
+                            .queryParam("sum", tx.getAmount())
+                            .build(tx.getAccountId())
+                    )
+                    .retrieve()
+                    .bodyToMono(Boolean.class)
+                    .block();
+
+            if (!Boolean.TRUE.equals(hasSufficientFunds)) {
+                logger.warn("Insufficient funds for account: {}", tx.getAccountId());
+                throw new RuntimeException("NOT ENOUGH FUND");
+            }
+            logger.info("Sufficient funds validated for account: {}", tx.getAccountId());
+        } catch (Exception e) {
+            logger.error("Error during fund validation for account: {}", tx.getAccountId(), e);
+            throw new RuntimeException("Validation service unavailable");
+        }
+    }
+
+    private void validateForTransfer(Transaction tx) {
+        if (tx.getDestinationAccountId() == null) {
+            throw new RuntimeException("Destination account ID is required for transfers");
+        }
+
+        // Reuse withdraw validation for source account
+        validateForWithdraw(tx);
+
+        // Validate destination account EXISTS by calling GET /{id} — expect 200 OK
+        logger.info("Validating existence of destination account: {}", tx.getDestinationAccountId());
+        try {
+            // We don't need the body — just check if 200 is returned
+            webClient.get()
+                    .uri("/{id}", tx.getDestinationAccountId())
+                    .retrieve()
+                    .toBodilessEntity() // ← No need to deserialize to Account!
+                    .block();
+
+            logger.info("Destination account exists: {}", tx.getDestinationAccountId());
+        } catch (Exception e) {
+            logger.warn("Destination account not found: {}", tx.getDestinationAccountId(), e);
+            throw new RuntimeException("Destination account not found");
+        }
     }
 }

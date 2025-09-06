@@ -7,16 +7,19 @@ public class TransactionEvent {
     private Long accountId;
     private BigDecimal amount;
     private String type;   // "DEPOSIT", "WITHDRAW", "TRANSFER"
-    private String username;
+    private String timestamp;
+    private Long destinationAccountId;
+
 
     public TransactionEvent() {}
 
-    public TransactionEvent(Long transactionId, Long accountId, BigDecimal amount, String type, String username) {
+    public TransactionEvent(Long transactionId, Long accountId, BigDecimal amount, String type, String timestamp, Long destinationAccountId) {
         this.transactionId = transactionId;
         this.accountId = accountId;
         this.amount = amount;
         this.type = type;
-        this.username = username;
+        this.timestamp = timestamp;
+        this.destinationAccountId=destinationAccountId;
     }
 
     public Long getTransactionId() {
@@ -51,11 +54,7 @@ public class TransactionEvent {
         this.type = type;
     }
 
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
+    public Long getDestinationAccountId() {
+        return destinationAccountId;
     }
 }
