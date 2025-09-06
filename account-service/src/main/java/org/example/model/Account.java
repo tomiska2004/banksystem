@@ -26,4 +26,8 @@ public class Account {
 
     @Column(nullable = false)
     private String currency; // e.g., "USD", "EUR"
+
+    public Long getUser() {
+        return userId;
+    }
 }

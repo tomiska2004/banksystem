@@ -1,5 +1,6 @@
 package org.example.config;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.stereotype.Component;
@@ -27,4 +28,12 @@ public class JwtUtil {
                 .getBody()
                 .getSubject();
     }
+    public Long extractUserId(String token) {
+        Claims claims = Jwts.parser()
+                .setSigningKey(secret)
+                .parseClaimsJws(token)
+                .getBody();
+        return Long.valueOf(claims.get("userId").toString());
+    }
+
 }

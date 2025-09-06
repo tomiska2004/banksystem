@@ -64,4 +64,10 @@ public class AccountService {
         kafkaTemplate.send("account-events", "Withdrew " + amount + " from account " + accountId);
         return saved;
     }
+
+    public boolean validateAccountOwnership(Long accountId, Long userId) {
+        return accountRepository.findById(accountId)
+                .map(account -> account.getUserId().equals(userId))
+                .orElse(false);
+    }
 }

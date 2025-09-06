@@ -48,4 +48,10 @@ public class AccountController {
                                             @RequestParam BigDecimal amount) {
         return ResponseEntity.ok(accountService.withdraw(id, amount));
     }
+    @GetMapping("/{id}/validate")
+    public ResponseEntity<Boolean> validateAccount(@PathVariable Long id,
+                                                   @RequestParam Long userId) {
+        boolean isOwner = accountService.validateAccountOwnership(id, userId);
+        return ResponseEntity.ok(isOwner);
+    }
 }
